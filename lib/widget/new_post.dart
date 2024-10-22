@@ -34,7 +34,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       try {
         final newPost = Post(
-          id: 0,
+          postId: 0,
           title: _titleController.text,
           author: _authorController.text,
           content: _contentController.text,

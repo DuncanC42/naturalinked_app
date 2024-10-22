@@ -1,24 +1,29 @@
+import 'image_model.dart';
+
 class Post {
-  final int id;
+  final int postId;
   final String title;
   final String content;
   final String author;
-  final String? imageUrl; // Nouveau champ pour l'URL de l'image
+  final List<PostImage> images; // Nouvelle propriété
 
   Post({
-    required this.id,
+    required this.postId,
     required this.title,
     required this.content,
     required this.author,
-    this.imageUrl,
+    this.images = const [], // Par défaut liste vide
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
-      id: json['id'],
-      author: json['author'],
-      title: json['title'],
-      content: json['content'],
+      postId: json['postId'] ?? 0,
+      author: json['author'] ?? 'Unknown',
+      title: json['title'] ?? 'No Title',
+      content: json['content'] ?? 'No Content',
+      images: (json['images'] as List<dynamic>?)
+          ?.map((imageJson) => PostImage.fromJson(imageJson))
+          .toList() ?? [],
     );
   }
 }

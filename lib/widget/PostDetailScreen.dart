@@ -1,5 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/post_model.dart';
+import '../service/image_service.dart';
 import '../service/post_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -14,12 +19,16 @@ class PostDetailScreen extends StatefulWidget {
   _PostDetailScreenState createState() => _PostDetailScreenState();
 }
 
+
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _authorController;
   late TextEditingController _contentController;
   final _postsService = PostsService();
+  final ImagePicker _picker = ImagePicker();
+  List<File> _selectedImages = [];
+  List<int> _imagesToDelete = [];
   bool _isEditing = false;
   bool _isLoading = false;
 
@@ -39,6 +48,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     super.dispose();
   }
 
+  // Modifiez votre méthode _updatePost pour gérer les images
   Future<void> _updatePost() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -47,13 +57,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
       try {
         final updatedPost = Post(
-          id: widget.post.id,
+          postId: widget.post.postId,
           title: _titleController.text,
           author: _authorController.text,
           content: _contentController.text,
+          images: widget.post.images,
         );
 
-        await _postsService.updatePost(updatedPost);
+        await _postsService.updatePostWithImages(
+          updatedPost,
+          _selectedImages,
+          _imagesToDelete,
+        );
 
         if (mounted) {
           setState(() {
@@ -61,7 +76,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             _isLoading = false;
           });
 
-          // Afficher le message de succès
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Post mis à jour avec succès'),
@@ -69,7 +83,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           );
 
-          // Retourner true pour indiquer que la mise à jour a réussi
           Navigator.pop(context, true);
         }
       } catch (e) {
@@ -117,6 +130,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
+  // Modifiez votre méthode _buildEditForm pour inclure la gestion des images
   Widget _buildEditForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -124,6 +138,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         key: _formKey,
         child: Column(
           children: [
+            // Champs existants
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -167,7 +182,123 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 return null;
               },
             ),
+            const SizedBox(height: 16),
+
+            // Section des images existantes
+            if (widget.post.images.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Images existantes:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: widget.post.images.length,
+                      itemBuilder: (context, index) {
+                        final image = widget.post.images[index];
+                        return Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: FutureBuilder<Uint8List>(
+                                future: ImageService().downloadImage(image.imageId),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    return Image.memory(
+                                      snapshot.data!,
+                                      height: 80,
+                                      width: 80,
+                                      fit: BoxFit.cover,
+                                    );
+                                  }
+                                  return const SizedBox(
+                                    height: 80,
+                                    width: 80,
+                                    child: Center(child: CircularProgressIndicator()),
+                                  );
+                                },
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _imagesToDelete.add(image.imageId);
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+            // Section des nouvelles images
+            if (_selectedImages.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nouvelles images:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _selectedImages.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Image.file(
+                                _selectedImages[index],
+                                height: 80,
+                                width: 80,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedImages.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+            // Bouton pour ajouter des images
+            ElevatedButton.icon(
+              onPressed: _pickAndUploadImages,
+              icon: const Icon(Icons.add_photo_alternate),
+              label: const Text('Ajouter des images'),
+            ),
+
             const SizedBox(height: 24),
+
+            // Bouton de mise à jour
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -209,4 +340,29 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       body: _isEditing ? _buildEditForm() : _buildReadOnlyView(),
     );
   }
+  // Ajoutez cette méthode pour sélectionner des images
+  Future<void> _pickAndUploadImages() async {
+    try {
+      final List<XFile> selectedImages = await _picker.pickMultiImage();
+      if (selectedImages.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(
+            selectedImages.map((xFile) => File(xFile.path)).toList(),
+          );
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking images: $e')),
+        );
+      }
+    }
+  }
+
+
+
+
+
 }
+

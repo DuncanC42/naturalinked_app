@@ -1,19 +1,20 @@
-// post_component.dart
 import 'package:flutter/material.dart';
 import '../models/post_model.dart';
+import '../service/image_service.dart';
 import '../service/post_service.dart';
 import 'PostDetailScreen.dart';
-
+import 'ImageCarousel.dart'; // Import du composant ImageCarousel
 
 class PostComponent extends StatelessWidget {
-  const PostComponent({
+  final Post post;
+  final Function() onRefresh;
+  final ImageService _imageService = ImageService();
+
+  PostComponent({
     super.key,
     required this.post,
     required this.onRefresh,
   });
-
-  final Post post;
-  final Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -39,38 +40,6 @@ class PostComponent extends StatelessWidget {
               ),
             ),
           ),
-
-          // Image section - only show if image exists
-          if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
-            Container(
-              constraints: const BoxConstraints(
-                maxHeight: 200,
-              ),
-              child: Image.network(
-                post.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 100,
-                    color: Colors.grey[100],
-                    child: const Center(
-                      child: Icon(Icons.error_outline),
-                    ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 100,
-                    color: Colors.grey[100],
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                },
-              ),
-            ),
-
           // Post content
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -90,6 +59,15 @@ class PostComponent extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 10),
+
+                // Si le post a des images, affiche le carousel
+                if (post.images.isNotEmpty)
+                  ImageCarousel(
+                    imageUrls: post.images
+                        .map((img) => "http://localhost:8080" + img.downloadUrl)
+                        .toList(),
+                  ),
               ],
             ),
           ),
@@ -121,7 +99,8 @@ class PostComponent extends StatelessWidget {
                       builder: (BuildContext context) {
                         return AlertDialog(
                           title: const Text('Confirm Deletion'),
-                          content: const Text('Are you sure you want to delete this post?'),
+                          content: const Text(
+                              'Are you sure you want to delete this post?'),
                           actions: <Widget>[
                             TextButton(
                               child: const Text('Cancel'),
@@ -137,7 +116,12 @@ class PostComponent extends StatelessWidget {
                     );
 
                     if (confirm == true) {
-                      await PostsService().deletePost(post.id);
+                      // D'abord supprimer toutes les images
+                      for (var image in post.images) {
+                        await _imageService.deleteImage(image.imageId);
+                      }
+                      // Puis supprimer le post
+                      await PostsService().deletePost(post.postId);
                       onRefresh();
 
                       if (context.mounted) {
