@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/post_model.dart';
+import 'package:naturalinked_app/models/post_model.dart';
+import 'package:naturalinked_app/service/post_service.dart';
 import '../service/image_service.dart';
-import '../service/post_service.dart';
+import 'ImageCarousel.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -125,6 +127,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             widget.post.content,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
+          // Si le post a des images, affiche le carousel
+          if (widget.post.images.isNotEmpty)
+            ImageCarousel(
+              imageUrls: widget.post.images
+                  .map((img) => "http://localhost:8080" + img.downloadUrl)
+                  .toList(),
+            ),
         ],
       ),
     );
@@ -197,9 +206,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     height: 100,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
+                      // Afficher uniquement les images qui ne sont pas dans _imagesToDelete
                       itemCount: widget.post.images.length,
                       itemBuilder: (context, index) {
                         final image = widget.post.images[index];
+
+                        // Vérifier si l'image est marquée pour suppression
+                        if (_imagesToDelete.contains(image.imageId)) {
+                          return const SizedBox.shrink(); // Ne rien afficher si l'image est marquée
+                        }
+
                         return Stack(
                           children: [
                             Padding(
@@ -230,7 +246,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
                                   setState(() {
-                                    _imagesToDelete.add(image.imageId);
+                                    _imagesToDelete.add(image.imageId);  // Marquer pour suppression
                                   });
                                 },
                               ),
@@ -242,6 +258,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ],
               ),
+
 
             // Section des nouvelles images
             if (_selectedImages.isNotEmpty)

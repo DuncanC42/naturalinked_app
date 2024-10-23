@@ -27,7 +27,9 @@ class ImageService {
           'files',
           stream,
           length,
-          filename: image.path.split('/').last,
+          filename: image.path
+              .split('/')
+              .last,
         );
 
         request.files.add(multipartFile);
@@ -48,33 +50,31 @@ class ImageService {
     }
   }
 
+  // Télécharge l'image en utilisant son ID
   Future<Uint8List> downloadImage(int imageId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/images/image/download/$imageId'),
-      );
+    final url = '$baseUrl/images/image/download/$imageId';
+    final response = await http.get(Uri.parse(url));
 
-      if (response.statusCode == 200) {
-        return response.bodyBytes;
-      } else {
-        throw Exception('Failed to download image');
-      }
-    } catch (e) {
-      throw Exception('Error downloading image: $e');
+    if (response.statusCode == 200) {
+      return response.bodyBytes; // Retourne les données binaires de l'image
+    } else {
+      throw Exception(
+          'Erreur lors du téléchargement de l\'image: ${response.statusCode}');
     }
   }
 
-  Future<void> deleteImage(int imageId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/images/image/$imageId/delete'),
-      );
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete image');
-      }
-    } catch (e) {
-      throw Exception('Error deleting image: $e');
+
+Future<void> deleteImage(int imageId) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/images/image/$imageId/delete'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete image');
     }
+  } catch (e) {
+    throw Exception('Error deleting image: $e');
   }
-}
+}}

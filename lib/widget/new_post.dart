@@ -1,5 +1,6 @@
-// create_post.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/post_model.dart';
 import '../service/post_service.dart';
 
@@ -17,6 +18,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _contentController = TextEditingController();
   final _postsService = PostsService();
   bool _isLoading = false;
+  final ImagePicker _picker = ImagePicker();
+  List<File> _selectedImages = [];  // Contient les images sélectionnées
 
   @override
   void dispose() {
@@ -26,6 +29,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
+  // Méthode pour créer un post avec des images
   Future<void> _createPost() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -33,6 +37,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       });
 
       try {
+        // Créer un modèle de Post sans les images (elles seront ajoutées ensuite)
         final newPost = Post(
           postId: 0,
           title: _titleController.text,
@@ -40,8 +45,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           content: _contentController.text,
         );
 
-        await _postsService.createPost(newPost);
+        // Créer le post avec les images
+        await _postsService.createPostWithImages(newPost, _selectedImages);
 
+        // Afficher un message de succès et retourner
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -62,10 +69,28 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         }
       }
 
-      if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Méthode pour sélectionner et ajouter des images
+  Future<void> _pickAndUploadImages() async {
+    try {
+      final List<XFile>? selectedImages = await _picker.pickMultiImage();
+      if (selectedImages != null && selectedImages.isNotEmpty) {
         setState(() {
-          _isLoading = false;
+          _selectedImages.addAll(
+            selectedImages.map((xFile) => File(xFile.path)).toList(),
+          );
         });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking images: $e')),
+        );
       }
     }
   }
@@ -125,6 +150,34 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _pickAndUploadImages,
+                icon: const Icon(Icons.add_photo_alternate),
+                label: const Text('Ajouter des images'),
+              ),
+              const SizedBox(height: 16),
+
+              // Prévisualisation des images sélectionnées
+              if (_selectedImages.isNotEmpty)
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedImages.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Image.file(
+                          _selectedImages[index],
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    },
+                  ),
+                ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

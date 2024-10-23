@@ -127,7 +127,7 @@ class PostsService {
     }
   }
 
-  // Mise à jour d'un post avec gestion des images
+
   Future<Post> updatePostWithImages(Post post, List<File> newImages, List<int> imageIdsToDelete) async {
     try {
       // 1. Supprimer les images marquées pour suppression
@@ -135,7 +135,7 @@ class PostsService {
         await _imageService.deleteImage(imageId);
       }
 
-      // 2. Upload les nouvelles images
+      // 2. Upload les nouvelles images (s'il y en a)
       if (newImages.isNotEmpty) {
         await _imageService.uploadImages(newImages, post.postId);
       }
@@ -147,9 +147,5 @@ class PostsService {
     }
   }
 
+
 }
-
-
-
-
-
